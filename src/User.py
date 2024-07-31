@@ -19,6 +19,7 @@ class client:
     graduation_year = str()
     field_of_study = str()
     password = str()
+    is_in_group = bool()
     current_menu = "start"
     
 

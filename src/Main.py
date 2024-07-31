@@ -1,6 +1,8 @@
 import telebot
 import User
-import re
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+
 
 
 TOKEN = "7287866527:AAH0jFYht54U_XMCzc_ThdcQ-KSgK9f2yHE"
@@ -48,14 +50,14 @@ def message_handle(message):
 		login_password_input(message)
 
 	
-
-
-
+global keyboard 
+global button1
+global button2
 def start_menu(message):
 	bot.reply_to(message, "سلام خوبی؟ \n به ربات کانون خوش اومدی")
 	bot.send_message(message.chat.id , "خوب حتما میخوای بدونی این ربات چیکار میکنه بزار تا بهت بگم\nto be complete")
 	User.client(message.chat.id)
-	
+
 def show_help(message):
 	bot.reply_to(message , "عه مشکلی پیش اومده؟")
 	last_sent_message = bot.send_message(message.chat.id , "خوب بزار یه لیست از دستورات بهت بدم ")
@@ -128,17 +130,43 @@ def re_password_input(message):
 		bot.send_message(message.chat.id , "رمز عبور با رمز عبور اولیه مطابقت نداره")
 	else:
 		bot.reply_to(message , f'رمز عبور   شما {message.text} ثبت شد')
-		User.save_client_to_database(client)
-		bot.send_message(4207545703 , client.firstname + client.lastname +'\n'+ str(client.phone_number) +'\n'+ str(client.graduation_year) + '\n'+client.field_of_study +'\n'+str(client.id) +'\n'+ client.password)
-		bot.send_message(client.id , "ثبت نام شما کامل شد و اطلاعات شما ثبت شد")
-		client.current_menu="main_menu"
+		
+
+		keyboard = InlineKeyboardMarkup()
+		button1 = InlineKeyboardButton("خیر هنوز عضو نشدم", callback_data="NO")
+		button2 = InlineKeyboardButton("آره بابا عضو قدیمی ام", callback_data="YES")
+		keyboard.add(button1, button2)
+		bot.send_message(message.chat.id, 'آیا عضو گروه سمپاد هستید؟', reply_markup=keyboard)
+
+		
+
+
+@bot.callback_query_handler(func=lambda call: True)
+def is_in_group(call):
+	client = User.get_client_by_id(call.message.chat.id)
+	if call.data == "YES":
+		client.is_in_group = True ;
+		bot.send_message(call.message.chat.id, "عضو هستم انتخاب شد")
+		
+	elif call.data == "NO":
+		client.is_in_group = False ;
+		bot.send_message(call.message.chat.id, "عضو نیستم انتخاب شد و درخواست شما برای ادمین فرستاده شد ")
+	User.save_client_to_database(client)
+	bot.send_message(client.id , "ثبت نام شما کامل شد و اطلاعات شما ثبت شد")
+	bot.send_message('-1002215173178'  ,client.firstname +'\n'+ client.lastname +'\n'+ client.phone_number +'\n'+ client.graduation_year +'\n'+ client.field_of_study  +'\n'+ client.password +'\n'+ str(client.is_in_group))
+	client.current_menu="main_menu"
+	bot.edit_message_reply_markup(chat_id= call.message.chat.id , message_id=call.message.message_id, reply_markup=None)
+	
+
 
 def log_out_menu(message):
 	if(User.is_user_logged_in_with_id(message.chat.id)):
+		User.get_client_by_id(message.chat.id).current_menu = "start"
 		User.rename_file_for_logout(message.chat.id)
 		bot.send_message(message.chat.id , "شما از حساب خود خارج شدید")
 	else:
 		bot.send_message(message.chat.id , "شما داخل هیچ حسابی نیستید")
+	
 
 def login_menu(message):
 	if(User.is_user_logged_in_with_id(message.chat.id)):
