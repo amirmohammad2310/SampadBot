@@ -1,6 +1,7 @@
 import json
 import os.path
 import re
+from pathlib import Path
 
 global clients
 global clients_id
@@ -55,13 +56,35 @@ def save_user(json_of_user , id , phone_number):
 
 
 def is_user_exist_with_phone_number(phone_number):
-    if(os.path.exists("../data/" + str(id)+ ".json")):
-        return True
-    else :
-        return False
-def get_user_json_from_file(id):
-    file = open("../data/" + str(id)+ '.json' , 'r')
-    return json.load(file)
+    for filename in os.listdir('../data/'):
+        if re.search(phone_number, filename):
+            return True
+    return False
+
+
+     
+def is_user_logged_in_with_id(id):
+    
+    id = str('_'+ str(id))
+    for filename in os.listdir('../data/'):
+        if re.search(id, filename):
+            return True
+    return False
+
+
+
+def get_user_json_from_file_phone_number(phone_number):
+    for filename in os.listdir('../data/'):
+        if re.search(phone_number, filename):
+            file = open("../data/" + filename , 'r')
+            return json.load(file)
+
+def get_user_json_from_file_id(id):
+    id = str('_'+ str(id))
+    for filename in os.listdir('../data/'):
+        if re.search(id, filename):
+            file = open("../data/" + filename , 'r')
+            return json.load(file)
 
 
 def is_phone_number_valid(number):
@@ -71,6 +94,7 @@ def is_phone_number_valid(number):
         return False
     if(re.search("09\d{9}" , number).start() != 0):
         return False
+    
     return True
 
 
@@ -82,3 +106,20 @@ def is_graduation_valid(number):
     if(re.search("1\d{3}" , number).start() != 0):
         return False
     return True
+
+def rename_file_for_logout(id):
+    id = str('_'+ str(id)) 
+    for filename in os.listdir('../data/'):
+        if re.search(id, filename):
+            old_path = Path("../data/" + filename)
+            new_path = Path("../data/" + filename.replace(id , '__________'))
+            old_path.rename(new_path)
+
+
+def rename_file_for_login(phone_number , id):
+    id = str('_'+ str(id)) 
+    for filename in os.listdir('../data/'):
+        if re.search(phone_number, filename):
+            old_path = Path("../data/" + filename)
+            new_path = Path("../data/" + filename.replace('__________' , id))
+            old_path.rename(new_path)
