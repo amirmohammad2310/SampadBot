@@ -1,7 +1,11 @@
 import telebot
 import User
-from telebot.types import ReplyKeyboardMarkup, KeyboardButton
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+import json
+import food_reminder
+from datetime import datetime
+import schedule
+import threading
 
 
 
@@ -10,6 +14,38 @@ TOKEN = "7287866527:AAH0jFYht54U_XMCzc_ThdcQ-KSgK9f2yHE"
 
 bot = telebot.TeleBot(TOKEN)
 
+
+
+
+
+def check_for_message():
+    dict_weekly = food_reminder.read_weekly_dic()
+    result_list = list()
+    dt = datetime.now()
+    day_number = dt.weekday()
+    for key in dict_weekly.keys():
+        if day_number == dict_weekly[key]:
+            result_list.append(key)
+    return result_list
+
+      
+def send_food_message():
+    id_list = check_for_message()
+    for id in id_list:
+        bot.send_message(id , "غذا یادت نره")
+
+
+def thread_for_run():
+    
+    schedule.every(1).day.at("19:00").do(send_food_message)
+
+    while True:
+        schedule.run_pending()
+
+
+
+t= threading.Thread(target=thread_for_run)
+t.start()
 
 
 
@@ -30,6 +66,8 @@ def message_handle(message):
 		log_out_menu(message)
 	elif(message.text == '/login'):
 		login_menu(message)
+	elif(message.text == '/remind'):
+		remind_menu(message)
 	elif(current_menu == 'firstname'):
 		firstname_input(message)
 	elif(current_menu == 'lastname'):
@@ -138,10 +176,14 @@ def re_password_input(message):
 		keyboard.add(button1, button2)
 		bot.send_message(message.chat.id, 'آیا عضو گروه سمپاد هستید؟', reply_markup=keyboard)
 
-		
+def group_call_handler(call):
+	if(call.data == "YES" or call.data == "NO"):
+		return True
+	else :
+		return False
 
 
-@bot.callback_query_handler(func=lambda call: True)
+@bot.callback_query_handler(group_call_handler)
 def is_in_group(call):
 	client = User.get_client_by_id(call.message.chat.id)
 	if call.data == "YES":
@@ -157,8 +199,6 @@ def is_in_group(call):
 	client.current_menu="main_menu"
 	bot.edit_message_reply_markup(chat_id= call.message.chat.id , message_id=call.message.message_id, reply_markup=None)
 	
-
-
 def log_out_menu(message):
 	if(User.is_user_logged_in_with_id(message.chat.id)):
 		User.get_client_by_id(message.chat.id).current_menu = "start"
@@ -167,7 +207,6 @@ def log_out_menu(message):
 	else:
 		bot.send_message(message.chat.id , "شما داخل هیچ حسابی نیستید")
 	
-
 def login_menu(message):
 	if(User.is_user_logged_in_with_id(message.chat.id)):
 		bot.send_message(message.chat.id , "شما هم اکنون در یک حساب کاربری هستید")
@@ -195,5 +234,60 @@ def login_password_input(message):
 		User.rename_file_for_login(User.get_client_by_id(message.chat.id).phone_number , message.chat.id)
 		bot.send_message(message.chat.id , "با موفقیت وارد شدید")
 
+
+def remind_menu(message):
+	if(User.is_user_logged_in_with_id(message.chat.id)):
+		if str(message.chat.id in food_reminder.read_weekly_dic()):
+			keyboard = InlineKeyboardMarkup()
+			button1 = InlineKeyboardButton("شنبه", callback_data="5")
+			button2 = InlineKeyboardButton("یک شنبه", callback_data="6")
+			button3 = InlineKeyboardButton("دوشنبه", callback_data="0")
+			button4 = InlineKeyboardButton("سه شنبه", callback_data="1")
+			button5 = InlineKeyboardButton("چهار شنبه", callback_data="2")
+			keyboard.add(button1, button2, button3, button4, button5)
+			bot.send_message(message.chat.id, 'دوست داری چه روزی بهت یاد آوری بشه؟', reply_markup=keyboard)
+	else:
+		bot.send_message(message.chat.id , "شما داخل هیچ حسابی نیستید")
+
+def remind_food_handler(call):
+	if call.data == "5":
+		return True
+	elif call.data == "6":
+		return True
+	elif call.data == "0":
+		return True
+	elif call.data == "1":
+		return True
+	elif call.data == "2":
+		return True
+	else:
+		return False
+
+
+def add_weekly(id, number_of_day):
+    with open("../data/weeklyschedule.json", "r") as file:
+        dict_weekly = json.load(file)
+
+    dict_weekly[id] = number_of_day
+    str_weekly = json.dumps(dict_weekly)
+   
+    with open("../data/weeklyschedule.json", "w") as file1:
+        file1.write(str_weekly)
+
+		
+@bot.callback_query_handler(remind_food_handler)
+def remind_food(call):
+	if call.data == "5":
+		add_weekly(call.message.chat.id , 5)
+	elif call.data == "6":
+		add_weekly(call.message.chat.id , 6)
+	elif call.data == "0":
+		add_weekly(call.message.chat.id , 0)
+	elif call.data == "1":
+		add_weekly(call.message.chat.id , 1)
+	elif call.data == "2":
+		add_weekly(call.message.chat.id , 2)
+	bot.send_message(call.message.chat.id , "انتخاب شما ثبت شد")
+	bot.edit_message_reply_markup(chat_id= call.message.chat.id , message_id=call.message.message_id, reply_markup=None)
 
 bot.infinity_polling()
